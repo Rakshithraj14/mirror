@@ -41,20 +41,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _enableCapture() async {
     setState(() => _requesting = true);
-    final granted = await requestSmsAndOverlayPermissions();
-    if (granted) startSmsListening();
-    if (!mounted) return;
-    setState(() {
-      _requesting = false;
-      _capturing = granted;
-    });
-    await _refreshOverlayStatus();
-    if (!granted && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('SMS and overlay permissions are both needed to capture transactions.'),
-        ),
-      );
+    try {
+      final granted = await requestSmsAndOverlayPermissions();
+      if (granted) startSmsListening();
+      if (mounted) setState(() => _capturing = granted);
+      await _refreshOverlayStatus();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Permission wasn't granted. If Android didn't show a prompt, it "
+              'may be permanently denied — grant it manually in Settings > '
+              'Apps > Yumeko > Permissions.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Permission request failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _requesting = false);
     }
   }
 
