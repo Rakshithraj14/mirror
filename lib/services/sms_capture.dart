@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:another_telephony/telephony.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
@@ -6,11 +8,20 @@ import 'transactions_db.dart';
 
 final Telephony _telephony = Telephony.instance;
 
-Future<bool> requestSmsAndOverlayPermissions() async {
-  final smsGranted = await _telephony.requestSmsPermissions ?? false;
-  if (!smsGranted) return false;
-  final overlayGranted = await FlutterOverlayWindow.requestPermission() ?? false;
-  return overlayGranted;
+/// Safe to call when already granted: the plugin completes immediately with
+/// `true` and shows no dialog.
+Future<bool> requestSmsPermission() async =>
+    await _telephony.requestSmsPermissions ?? false;
+
+/// Opens the "Appear on top" settings page if the permission is missing.
+///
+/// Never awaits [FlutterOverlayWindow.requestPermission]: the plugin (0.5.0)
+/// implements ActivityResultListener but never registers it, so that future
+/// never completes. The caller re-checks after the user returns instead.
+Future<bool> ensureOverlayPermission() async {
+  if (await FlutterOverlayWindow.isPermissionGranted()) return true;
+  unawaited(FlutterOverlayWindow.requestPermission());
+  return false;
 }
 
 void startSmsListening() {

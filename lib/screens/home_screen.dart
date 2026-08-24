@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _overlayGranted = false;
+  bool _smsGranted = false;
   bool _capturing = false;
   bool _requesting = false;
 
@@ -31,7 +32,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshOverlayStatus();
+    // Returning from the "Appear on top" settings page lands here — that's
+    // the only signal we get, since the plugin's own result callback never
+    // fires (see ensureOverlayPermission).
+    if (state == AppLifecycleState.resumed) _resumeCapture();
   }
 
   Future<void> _refreshOverlayStatus() async {
@@ -39,33 +43,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) setState(() => _overlayGranted = granted);
   }
 
+  Future<void> _resumeCapture() async {
+    await _refreshOverlayStatus();
+    if (_smsGranted && _overlayGranted && !_capturing) {
+      startSmsListening();
+      if (mounted) setState(() => _capturing = true);
+    }
+  }
+
   Future<void> _enableCapture() async {
     setState(() => _requesting = true);
     try {
-      final granted = await requestSmsAndOverlayPermissions();
-      if (granted) startSmsListening();
-      if (mounted) setState(() => _capturing = granted);
-      await _refreshOverlayStatus();
-      if (!granted && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Permission wasn't granted. If Android didn't show a prompt, it "
-              'may be permanently denied — grant it manually in Settings > '
-              'Apps > Yumeko > Permissions.',
-            ),
-          ),
-        );
+      _smsGranted = await requestSmsPermission();
+      if (!_smsGranted) {
+        _snack('SMS permission denied. Grant it in Settings > Apps > Yumeko > '
+            'Permissions, then tap again.');
+        return;
       }
+
+      if (!await ensureOverlayPermission()) {
+        _snack('Turn on "Appear on top" for Yumeko, then come back here.');
+        return;
+      }
+
+      startSmsListening();
+      if (mounted) setState(() => _capturing = true);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Permission request failed: $e')),
-        );
-      }
+      _snack('Permission request failed: $e');
     } finally {
       if (mounted) setState(() => _requesting = false);
+      await _refreshOverlayStatus();
     }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
