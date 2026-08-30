@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:label="Yumeko"
         android:name="${applicationName}"
@@ -13,6 +15,24 @@
             android:permission="android.permission.BROADCAST_SMS" android:exported="true">
             <intent-filter>
                 <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
+            </intent-filter>
+        </receiver>
+        <service android:name="im.zoe.labs.flutter_notification_listener.NotificationsHandlerService"
+            android:label="Yumeko notification listener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Detects transactions from payment app notifications"/>
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+        <receiver android:name="im.zoe.labs.flutter_notification_listener.RebootBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
         <service android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
