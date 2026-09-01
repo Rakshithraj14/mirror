@@ -19,6 +19,11 @@ class CategoryReasonForm extends StatefulWidget {
   final void Function(String category, String reason) onSubmit;
   final VoidCallback? onCancel;
 
+  /// Only the system overlay passes this: its window is created non-focusable
+  /// so it cannot hold the keyboard, and has to ask for focus on the tap that
+  /// needs it. In-app the field just works, so this stays null.
+  final VoidCallback? onReasonTap;
+
   const CategoryReasonForm({
     super.key,
     required this.bank,
@@ -30,6 +35,7 @@ class CategoryReasonForm extends StatefulWidget {
     this.initialCategory,
     this.initialReason,
     this.onCancel,
+    this.onReasonTap,
   });
 
   @override
@@ -127,7 +133,11 @@ class _CategoryReasonFormState extends State<CategoryReasonForm> {
               }),
             ),
             const SizedBox(height: 12),
-            ReasonField(controller: _reason, onSubmitted: (_) => _submit()),
+            ReasonField(
+              controller: _reason,
+              onTap: widget.onReasonTap,
+              onSubmitted: (_) => _submit(),
+            ),
             if (_error != null) ...[
               const SizedBox(height: 8),
               Text(_error!,
@@ -256,8 +266,14 @@ class CategoryChip extends StatelessWidget {
 class ReasonField extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onTap;
 
-  const ReasonField({super.key, required this.controller, this.onSubmitted});
+  const ReasonField({
+    super.key,
+    required this.controller,
+    this.onSubmitted,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -271,6 +287,7 @@ class ReasonField extends StatelessWidget {
       controller: controller,
       style: uiText(size: 14, color: p.ink),
       cursorColor: p.accentInk,
+      onTap: onTap,
       onSubmitted: onSubmitted,
       decoration: InputDecoration(
         hintText: 'What was it for?',

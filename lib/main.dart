@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import 'models/category.dart';
 import 'models/transaction.dart';
 import 'screens/home_shell.dart';
+import 'services/capture.dart';
 import 'services/settings.dart';
 import 'services/transactions_db.dart';
 import 'theme.dart';
@@ -63,35 +66,68 @@ class _OverlayApp extends StatefulWidget {
 }
 
 class _OverlayAppState extends State<_OverlayApp> {
-  Map<dynamic, dynamic>? _data;
+  Txn? _txn;
   List<Category> _categories = Category.defaults;
+
+  /// An overlay nobody answers is an overlay sitting on top of every other
+  /// app. The payment is already saved, so letting it go costs only the tag.
+  static const _idleTimeout = Duration(seconds: 60);
+  Timer? _idle;
 
   @override
   void initState() {
     super.initState();
-    // The overlay runs in its own engine, so it reads the categories itself
-    // rather than inheriting anything from the app.
-    TransactionsDb.instance
-        .categories()
-        .then((c) {
-          if (mounted && c.isNotEmpty) setState(() => _categories = c);
-        })
-        .catchError((_) => null);
-    FlutterOverlayWindow.overlayListener.listen((event) {
-      if (event is Map && mounted) setState(() => _data = event);
-    });
+    _idle = Timer(_idleTimeout, dismissOverlay);
+    _loadPending();
+  }
+
+  @override
+  void dispose() {
+    _idle?.cancel();
+    super.dispose();
+  }
+
+  /// The overlay runs in its own engine, so it reads everything it needs from
+  /// the database rather than waiting to be handed a payload.
+  Future<void> _loadPending() async {
+    try {
+      final pending = await TransactionsDb.instance.meta(pendingKey);
+      final txn = pending == null
+          ? null
+          : await TransactionsDb.instance.byId(int.parse(pending));
+      // Nothing to tag means an empty card with no way to dismiss it. Go away
+      // instead of sitting there invisible.
+      if (txn == null) return dismissOverlay();
+
+      final categories = await TransactionsDb.instance.categories();
+      if (!mounted) return;
+      setState(() {
+        _txn = txn;
+        if (categories.isNotEmpty) _categories = categories;
+      });
+    } catch (_) {
+      await dismissOverlay();
+    }
+  }
+
+  /// The window is created non-focusable so it can never hold the system
+  /// keyboard hostage. Typing needs focus, so it is granted on the tap that
+  /// asks for it and given back when the overlay closes.
+  Future<void> _takeFocus() async {
+    _idle?.cancel();
+    await FlutterOverlayWindow.updateFlag(OverlayFlag.focusPointer);
   }
 
   Future<void> _handleSubmit(String category, String reason) async {
-    final data = _data;
-    if (data == null) return;
-    await TransactionsDb.instance.tag(data['id'] as int, category, reason);
-    await FlutterOverlayWindow.closeOverlay();
+    final txn = _txn;
+    if (txn?.id == null) return;
+    await TransactionsDb.instance.tag(txn!.id!, category, reason);
+    await dismissOverlay();
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = _data;
+    final txn = _txn;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: yumekoTheme(Brightness.light),
@@ -103,17 +139,17 @@ class _OverlayAppState extends State<_OverlayApp> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: Align(
               alignment: Alignment.bottomCenter,
-              child: data == null
+              child: txn == null
                   ? const SizedBox.shrink()
                   : CategoryReasonForm(
                       categories: _categories,
-                      bank: data['bank'] as String,
-                      amount: (data['amount'] as num).toDouble(),
-                      type: TxnType.values.byName(data['type'] as String),
-                      time: DateTime.fromMillisecondsSinceEpoch(
-                          data['timestampMillis'] as int),
+                      bank: txn.bank,
+                      amount: txn.amount,
+                      type: txn.type,
+                      time: txn.time,
+                      onReasonTap: _takeFocus,
                       onSubmit: _handleSubmit,
-                      onCancel: () => FlutterOverlayWindow.closeOverlay(),
+                      onCancel: dismissOverlay,
                     ),
             ),
           ),

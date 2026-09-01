@@ -4,7 +4,9 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/transaction.dart';
+import '../services/capture.dart';
 import '../services/notification_capture.dart';
+import '../services/settings.dart';
 import '../services/sms_capture.dart';
 import '../services/txn_store.dart';
 import '../theme.dart';
@@ -74,6 +76,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     // Returning from a settings page is the only signal that a permission may
     // have been granted — the overlay plugin never fires its callback.
     if (state == AppLifecycleState.resumed) {
+      // If a tagging popup is somehow still up, it is over this app right now
+      // and holding focus. Opening Yumeko is the escape hatch.
+      dismissOverlay().catchError((_) {});
       _resumeCapture();
       _load();
     }
@@ -92,14 +97,23 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     });
   }
 
+  /// Starts listening again when the permissions are already in place.
+  ///
+  /// It used to bail on `_smsGranted`, which is a fresh `false` on every cold
+  /// start — so after a restart capture silently did nothing until you tapped
+  /// "Turn on" again. The overlay permission is checked first, so the SMS
+  /// prompt can never appear before the explainer.
   Future<void> _resumeCapture() async {
-    if (!_smsGranted || _capturing) return;
+    if (_capturing) return;
     final overlay = await FlutterOverlayWindow.isPermissionGranted()
         .catchError((_) => false);
-    if (overlay) {
-      startSmsListening();
-      if (mounted) setState(() => _capturing = true);
-    }
+    if (!overlay) return;
+
+    _smsGranted = await requestSmsPermission();
+    if (!_smsGranted) return;
+    startSmsListening();
+    if (mounted) setState(() => _capturing = true);
+
     if (await isNotificationAccessGranted()) await startNotificationListening();
   }
 
@@ -115,7 +129,16 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     } catch (_) {
       return; // a plugin channel failing must not take the app down
     }
-    if (overlayGranted && notificationsGranted && _capturing) return;
+    if (overlayGranted) await _resumeCapture();
+
+    if (!shouldAskForCapture(
+      overlay: overlayGranted,
+      notifications: notificationsGranted,
+      askedBefore: await Settings.instance.captureAsked(),
+    )) {
+      return;
+    }
+    await Settings.instance.setCaptureAsked();
     if (!mounted) return;
 
     final p = Palette.of(context);
@@ -186,14 +209,17 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       ));
   }
 
+  /// `viewInsets` is the keyboard, `SafeArea` is the gesture bar. Both are
+  /// needed and they never apply at once — MediaQuery's padding collapses to
+  /// zero while the keyboard is up.
   Widget _sheet(BuildContext ctx, Widget child) => Padding(
         padding: EdgeInsets.only(
           left: 14,
           right: 14,
           top: 14,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 14,
+          bottom: MediaQuery.viewInsetsOf(ctx).bottom + 14,
         ),
-        child: child,
+        child: SafeArea(top: false, child: child),
       );
 
   Future<void> _add() async {

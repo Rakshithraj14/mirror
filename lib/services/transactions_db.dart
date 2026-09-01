@@ -348,4 +348,13 @@ class TransactionsDb {
     final rows = await db.query('transactions', orderBy: 'timestampMillis DESC');
     return rows.map(Txn.fromMap).toList();
   }
+
+  /// How the overlay finds the payment it was raised for. It runs in its own
+  /// engine, so the database is the only thing both sides can see.
+  Future<Txn?> byId(int id) async {
+    final db = await _database;
+    final rows =
+        await db.query('transactions', where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : Txn.fromMap(rows.first);
+  }
 }

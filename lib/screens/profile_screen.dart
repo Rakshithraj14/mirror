@@ -185,6 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickExport() async {
     final format = await showModalBottomSheet<ExportFormat>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _Sheet(
         title: 'Export data',
@@ -225,6 +226,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final p = Palette.of(context);
     final picked = await showModalBottomSheet<ThemeMode>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _Sheet(
         title: 'Theme',
@@ -301,6 +303,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _about() {
     showModalBottomSheet<void>(
       context: context,
+      // Without this the sheet is capped near half the screen while _Sheet
+      // asks for 0.78 of it — the About text was clipped mid-sentence.
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const _Sheet(
         title: 'About Yumeko',
@@ -440,11 +445,15 @@ class _Sheet extends StatelessWidget {
     final p = Palette.of(context);
     return Material(
       color: Colors.transparent,
-      child: Container(
+      // `viewInsets` is the keyboard, `SafeArea` is the gesture bar. Without
+      // the second, every sheet ran under the navigation bar.
+      child: SafeArea(
+        top: false,
+        child: Container(
         margin: EdgeInsets.only(
           left: 14,
           right: 14,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 14,
+          bottom: MediaQuery.viewInsetsOf(context).bottom + 14,
           top: 14,
         ),
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
@@ -480,6 +489,7 @@ class _Sheet extends StatelessWidget {
             ),
             if (action != null) ...[const SizedBox(height: 12), action!],
           ],
+        ),
         ),
       ),
     );

@@ -11,6 +11,7 @@ class Settings {
   static final Settings instance = Settings._();
 
   static const _themeKey = 'theme';
+  static const _captureAskedKey = 'capture:asked';
 
   Future<ThemeMode> themeMode() async {
     final raw = await TransactionsDb.instance.meta(_themeKey);
@@ -23,4 +24,13 @@ class Settings {
 
   Future<void> setThemeMode(ThemeMode mode) =>
       TransactionsDb.instance.setMeta(_themeKey, mode.name);
+
+  /// Remembered so that declining the capture explainer is respected instead
+  /// of re-asked on the next launch. Overview's empty state and Profile ›
+  /// Capture are still there when you change your mind.
+  Future<bool> captureAsked() async =>
+      await TransactionsDb.instance.meta(_captureAskedKey) == 'true';
+
+  Future<void> setCaptureAsked() =>
+      TransactionsDb.instance.setMeta(_captureAskedKey, 'true');
 }

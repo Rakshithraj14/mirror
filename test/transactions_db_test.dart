@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:penny/models/account.dart';
 import 'package:penny/models/category.dart';
 import 'package:penny/models/transaction.dart';
+import 'package:penny/services/capture.dart';
 import 'package:penny/services/transactions_db.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -374,6 +375,33 @@ void main() {
 
       expect(await TransactionsDb.instance.countWithAccount(cashAccount), 1);
       expect(await TransactionsDb.instance.countWithAccount('Nowhere'), 0);
+    });
+  });
+
+  group('the overlay handover', () {
+    // The overlay runs in a second engine, so the row and the id it was raised
+    // for both travel through the database rather than a timed message.
+    test('byId returns the row the popup was raised for', () async {
+      final id = await TransactionsDb.instance.insert(
+          txn(amount: 190, type: TxnType.debit, source: TxnSource.sms, time: at));
+
+      final found = await TransactionsDb.instance.byId(id);
+      expect(found?.amount, 190);
+      expect(found?.id, id);
+    });
+
+    test('byId is null for a row that is gone', () async {
+      // The overlay closes itself on this rather than showing an empty card
+      // that cannot be dismissed.
+      expect(await TransactionsDb.instance.byId(4242), isNull);
+    });
+
+    test('the pending id round-trips and clears', () async {
+      await TransactionsDb.instance.setMeta(pendingKey, '7');
+      expect(await TransactionsDb.instance.meta(pendingKey), '7');
+
+      await TransactionsDb.instance.deleteMeta(pendingKey);
+      expect(await TransactionsDb.instance.meta(pendingKey), isNull);
     });
   });
 }
