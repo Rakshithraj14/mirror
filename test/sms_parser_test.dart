@@ -243,4 +243,45 @@ void main() {
       expect(txn!.upiRef, isNull);
     });
   });
+
+  group('closing balance', () {
+    test("captures the bank's own balance without stealing the amount", () {
+      final txn = parseBankSms(
+        'AD-CANBNK',
+        'Dear Customer, Acct XXX489 Dr. INR 190.00 on 01/07/26 to '
+            'SHASHIKANTA; UPI: 618239653510; Bal INR 98.75.Not you?'
+            'SMS BLOCKUPI to 9901771222-CanaraBank',
+        DateTime(2026, 7, 1),
+      );
+
+      expect(txn, isNotNull);
+      // The amount must still be the transaction, not the balance beside it.
+      expect(txn!.amount, 190);
+      expect(txn.type, TxnType.debit);
+      expect(txn.balanceAfter, 98.75);
+    });
+
+    test('reads a balance with thousands separators', () {
+      final txn = parseBankSms(
+        'AD-CANBNK',
+        'Dear Customer, Acct XXX489 credited with INR 1,000.00 on 26/08/26 '
+            'from MANJUNATH N; UPI:344289141508; Bal INR 1,343.42-CanaraBank',
+        DateTime(2026, 8, 26),
+      );
+
+      expect(txn!.amount, 1000);
+      expect(txn.balanceAfter, 1343.42);
+    });
+
+    test('a message with no balance leaves it unknown', () {
+      final txn = parseBankSms(
+        'VM-HDFCBK',
+        'Rs 250.00 debited from a/c XX1234 to someone@upi',
+        DateTime(2026, 9, 1),
+      );
+
+      expect(txn!.amount, 250);
+      expect(txn.balanceAfter, isNull);
+    });
+  });
 }

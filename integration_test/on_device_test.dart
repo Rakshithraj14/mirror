@@ -76,13 +76,13 @@ void main() {
         rawSender: 'AD-CANBNK',
         rawBody: 'raw',
       ));
-      await TransactionsDb.instance.tag(id!, TxnCategory.family, 'groceries');
+      await TransactionsDb.instance.tag(id!, 'family', 'groceries');
 
       // Force a close/reopen so the assertion reads from disk, not cache.
       await TransactionsDb.instance.reopenForTest();
 
       final saved = (await TransactionsDb.instance.getAll()).single;
-      expect(saved.category, TxnCategory.family);
+      expect(saved.category, 'family');
       expect(saved.reason, 'groceries');
     });
   });

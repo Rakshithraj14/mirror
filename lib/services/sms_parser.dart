@@ -50,6 +50,13 @@ final _upiRefPattern = RegExp(
     r'(?:no\.?|num(?:ber)?|id)?[\s:.\-]*(\d{10,18})',
     caseSensitive: false);
 
+// "Bal INR 98.75", "Avl Bal: 1,343.42", "Balance Rs 500". The bank's own
+// figure for the account after the transaction, which beats any running total
+// we could keep ourselves.
+final _balancePattern = RegExp(
+    r'\bbal(?:ance)?\b\.?\s*:?\s*(?:inr|rs\.?|\u20b9)?\s*([\d,]+(?:\.\d{1,2})?)',
+    caseSensitive: false);
+
 /// Payment apps whose notifications are trusted as transaction sources.
 /// Anything not listed here is ignored outright — the package name is the
 /// filter, which is why notification text needs no "a/c" context check.
@@ -122,6 +129,14 @@ Txn? _parse({
   final amount = double.tryParse(amountMatch.group(1)!.replaceAll(',', ''));
   if (amount == null || amount <= 0) return null;
 
+  // The transaction amount is read with firstMatch, so it is always the amount
+  // stated before the closing balance — "Dr. INR 190.00 ... Bal INR 98.75"
+  // still books 190.
+  final balanceMatch = _balancePattern.firstMatch(body);
+  final balance = balanceMatch == null
+      ? null
+      : double.tryParse(balanceMatch.group(1)!.replaceAll(',', ''));
+
   return Txn(
     bank: name,
     amount: amount,
@@ -131,6 +146,7 @@ Txn? _parse({
     rawSender: rawSender,
     rawBody: body,
     upiRef: _upiRefPattern.firstMatch(body)?.group(1),
+    balanceAfter: balance,
   );
 }
 
