@@ -27,7 +27,10 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
+        # Split by ABI: the fat APK carries three architectures and came to
+        # 55 MB, over Telegram's 50 MB bot upload limit. arm64 alone is ~17 MB,
+        # and every Android phone worth sideloading onto since ~2019 is arm64.
+        run: flutter build apk --release --split-per-abi
 
       - name: Send APK to Telegram
         if: success()
@@ -35,10 +38,16 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+          apk=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          ls -lh "$apk"
+          reply=$(curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
             -F chat_id="${TELEGRAM_CHAT_ID}" \
             -F caption="penny build ${GITHUB_SHA::7} (${GITHUB_REF_NAME})" \
-            -F document=@build/app/outputs/flutter-apk/app-release.apk
+            -F document=@"$apk")
+          echo "$reply"
+          # curl exits 0 on a 413, so without this the job goes green having
+          # delivered nothing — which is how the 55 MB APK went unnoticed.
+          echo "$reply" | grep -q '"ok":true' || exit 1
 
       - name: Notify Telegram on failure
         if: failure()
