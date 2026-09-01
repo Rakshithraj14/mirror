@@ -18,6 +18,8 @@ const _bankPrefixes = <String, String>{
   'UNION': 'Union Bank',
   'INDUS': 'IndusInd Bank',
   'PAYTM': 'Paytm Payments Bank',
+  'IPBMSG': 'India Post Payments Bank',
+  'IPPB': 'India Post Payments Bank',
 };
 
 final _amountPattern = RegExp(

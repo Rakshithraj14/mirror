@@ -27,6 +27,8 @@ void main() {
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    // Test files run concurrently and would otherwise share one database file.
+    TransactionsDb.dbName = 'yumeko_db_test.db';
   });
 
   setUp(() async {
@@ -177,13 +179,6 @@ void main() {
     });
   });
 
-  test('backfill flag persists and is idempotent', () async {
-    expect(await TransactionsDb.instance.isBackfillDone(), isFalse);
-    await TransactionsDb.instance.markBackfillDone();
-    expect(await TransactionsDb.instance.isBackfillDone(), isTrue);
-    await TransactionsDb.instance.markBackfillDone();
-    expect(await TransactionsDb.instance.isBackfillDone(), isTrue);
-  });
   group('schema migration', () {
     // Column sets exactly as shipped, so an upgrade is tested against what
     // was actually on disk rather than against today's schema.
@@ -247,12 +242,5 @@ void main() {
       expect(saved.upiRef, '618239653510');
     });
 
-    test('backfill flag table is created by the upgrade', () async {
-      await seedLegacy(1, v1Columns);
-
-      expect(await TransactionsDb.instance.isBackfillDone(), isFalse);
-      await TransactionsDb.instance.markBackfillDone();
-      expect(await TransactionsDb.instance.isBackfillDone(), isTrue);
-    });
   });
 }

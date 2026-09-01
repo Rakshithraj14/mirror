@@ -43,6 +43,8 @@ class TransactionsDb {
             reason TEXT
           )
         ''');
+        // Reserved key/value store. Currently unused — kept so existing v3
+        // databases and fresh installs keep the same shape.
         await db.execute(
             'CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
       },
@@ -134,22 +136,6 @@ class TransactionsDb {
       limit: 1,
     );
     return rows.isEmpty ? null : Txn.fromMap(rows.first);
-  }
-
-  Future<bool> isBackfillDone() async {
-    final db = await _database;
-    final rows = await db.query('meta',
-        where: 'key = ?', whereArgs: ['smsBackfillDone'], limit: 1);
-    return rows.isNotEmpty;
-  }
-
-  Future<void> markBackfillDone() async {
-    final db = await _database;
-    await db.insert(
-      'meta',
-      {'key': 'smsBackfillDone', 'value': DateTime.now().toIso8601String()},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
   }
 
   Future<void> tag(int id, TxnCategory category, String reason) async {

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import 'models/transaction.dart';
-import 'screens/home_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'services/transactions_db.dart';
+import 'theme.dart';
 import 'widgets/category_reason_form.dart';
 
 void main() {
@@ -17,8 +18,8 @@ class YumekoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Yumeko',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
-      home: const HomeScreen(),
+      theme: yumekoTheme,
+      home: const DashboardScreen(),
     );
   }
 }
@@ -60,7 +61,7 @@ class _OverlayAppState extends State<_OverlayApp> {
     final data = _data;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
+      theme: yumekoTheme,
       home: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
