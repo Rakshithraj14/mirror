@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:penny/models/account.dart';
 import 'package:penny/models/category.dart';
+import 'package:penny/models/profile.dart';
 import 'package:penny/models/transaction.dart';
 import 'package:penny/services/capture.dart';
 import 'package:penny/services/transactions_db.dart';
@@ -375,6 +376,35 @@ void main() {
 
       expect(await TransactionsDb.instance.countWithAccount(cashAccount), 1);
       expect(await TransactionsDb.instance.countWithAccount('Nowhere'), 0);
+    });
+  });
+
+  group('profile', () {
+    test('a fresh database already answers to Yumeko', () async {
+      final profile = await TransactionsDb.instance.profile();
+      expect(profile.name, 'Yumeko');
+      expect(profile.avatar, isNull);
+    });
+
+    test('name and photo round-trip', () async {
+      await TransactionsDb.instance.saveProfile(
+          const Profile(name: '  Rakshith  ', avatar: '/data/avatar_1.jpg'));
+
+      final saved = await TransactionsDb.instance.profile();
+      expect(saved.name, 'Rakshith', reason: 'stored trimmed');
+      expect(saved.avatar, '/data/avatar_1.jpg');
+    });
+
+    test('removing the photo clears the row rather than storing a blank',
+        () async {
+      await TransactionsDb.instance
+          .saveProfile(const Profile(name: 'R', avatar: '/data/avatar_1.jpg'));
+      await TransactionsDb.instance.saveProfile(const Profile(name: 'R'));
+
+      // Stored empty, `profile()` would read back a path pointing nowhere and
+      // the card would try to decode it.
+      expect(await TransactionsDb.instance.meta('profile:avatar'), isNull);
+      expect((await TransactionsDb.instance.profile()).hasAvatar, isFalse);
     });
   });
 

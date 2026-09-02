@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../models/account.dart';
 import '../models/category.dart';
+import '../models/profile.dart';
 import '../models/transaction.dart';
 import '../services/accounts.dart';
+import '../services/avatar.dart';
 import '../services/export_csv.dart';
 import '../services/tags.dart';
 import '../services/txn_store.dart';
@@ -18,6 +22,7 @@ class ProfileScreen extends StatefulWidget {
   final List<Txn> txns;
   final List<Account> accounts;
   final List<Category> categories;
+  final Profile profile;
   final bool capturing;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -35,6 +40,7 @@ class ProfileScreen extends StatefulWidget {
     required this.txns,
     required this.accounts,
     required this.categories,
+    required this.profile,
     required this.capturing,
     required this.themeMode,
     required this.onThemeChanged,
@@ -71,42 +77,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text('Profile',
             style: uiText(size: 22, weight: FontWeight.w700, color: p.ink)),
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: p.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: p.line),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: p.fabGradient),
-                ),
-                child: Center(
-                  child: Text('Y', style: heroAmount(20, color: p.onAccent)),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Yumeko',
-                        style: uiText(
-                            size: 16, weight: FontWeight.w700, color: p.ink)),
-                    const SizedBox(height: 2),
-                    Text('${widget.txns.length} transactions · on this phone only',
-                        style: uiText(size: 12, color: p.inkFaint)),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        _ProfileCard(
+          profile: widget.profile,
+          count: widget.txns.length,
+          onRename: _rename,
+          onEditPhoto: _editPhoto,
         ),
         const SizedBox(height: 18),
         _Section(title: 'Money', children: [
@@ -181,6 +156,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
+
+  Future<void> _rename() async {
+    final name = await _promptText(
+      context,
+      title: 'Your name',
+      hint: Profile.defaultName,
+      initial: widget.profile.name,
+    );
+    // Cancelling, or clearing the field entirely, leaves the name alone —
+    // a blank card is never what anyone meant.
+    if (name == null || name.trim().isEmpty) return;
+
+    await widget.store.saveProfile(Profile(
+      name: name.trim(),
+      avatar: widget.profile.avatar,
+    ));
+    await widget.onChanged();
+  }
+
+  Future<void> _editPhoto() async {
+    if (widget.profile.hasAvatar) {
+      final replace = await _askPhotoAction();
+      if (replace == null) return;
+      if (!replace) {
+        await deleteAvatar(widget.profile.avatar);
+        await widget.store.saveProfile(Profile(name: widget.profile.name));
+        await widget.onChanged();
+        return;
+      }
+    }
+
+    final path = await pickAvatar(previous: widget.profile.avatar);
+    if (path == null) return;
+    await widget.store.saveProfile(
+        Profile(name: widget.profile.name, avatar: path));
+    await widget.onChanged();
+  }
+
+  /// true = pick a new one, false = go back to the initial, null = cancel.
+  /// Without the middle option there is no way back to the letter.
+  Future<bool?> _askPhotoAction() => showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _Sheet(
+          title: 'Your photo',
+          children: [
+            _Row(
+              icon: Icons.photo_library_rounded,
+              label: 'Choose another',
+              onTap: () => Navigator.of(ctx).pop(true),
+            ),
+            _Row(
+              icon: Icons.delete_outline_rounded,
+              label: 'Remove photo',
+              value: 'back to ${widget.profile.initial}',
+              onTap: () => Navigator.of(ctx).pop(false),
+            ),
+          ],
+        ),
+      );
 
   Future<void> _pickExport() async {
     final format = await showModalBottomSheet<ExportFormat>(
@@ -423,6 +459,133 @@ class _Row extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The header card: your photo, your name, and how much is on this phone.
+///
+/// Two targets in one card — the circle changes the photo, the rest renames.
+/// The badge and the pencil are there because nothing else says it is tappable.
+class _ProfileCard extends StatelessWidget {
+  final Profile profile;
+  final int count;
+  final VoidCallback onRename;
+  final VoidCallback onEditPhoto;
+
+  const _ProfileCard({
+    required this.profile,
+    required this.count,
+    required this.onRename,
+    required this.onEditPhoto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return GestureDetector(
+      onTap: onRename,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: p.line),
+        ),
+        child: Row(
+          children: [
+            GestureDetector(onTap: onEditPhoto, child: _Avatar(profile: profile)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profile.display,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: uiText(
+                        size: 16, weight: FontWeight.w700, color: p.ink),
+                  ),
+                  const SizedBox(height: 2),
+                  Text('$count transactions · on this phone only',
+                      style: uiText(size: 12, color: p.inkFaint)),
+                ],
+              ),
+            ),
+            Icon(Icons.edit_rounded, size: 16, color: p.inkFaint),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final Profile profile;
+
+  const _Avatar({required this.profile});
+
+  static const _size = 46.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return SizedBox(
+      width: _size + 6,
+      height: _size + 6,
+      child: Stack(
+        children: [
+          Container(
+            width: _size,
+            height: _size,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: p.fabGradient),
+            ),
+            child: profile.hasAvatar
+                ? Image.file(
+                    File(profile.avatar!),
+                    fit: BoxFit.cover,
+                    width: _size,
+                    height: _size,
+                    // The file can be deleted from outside the app. A broken
+                    // avatar must not take the whole screen down with it.
+                    errorBuilder: (_, _, _) => _Initial(profile: profile),
+                  )
+                : _Initial(profile: profile),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: p.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: p.line),
+              ),
+              child: Icon(Icons.photo_camera_rounded,
+                  size: 10, color: p.inkMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Initial extends StatelessWidget {
+  final Profile profile;
+
+  const _Initial({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return Center(
+      child: Text(profile.initial, style: heroAmount(20, color: p.onAccent)),
     );
   }
 }

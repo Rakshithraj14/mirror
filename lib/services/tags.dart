@@ -32,7 +32,7 @@ const _rules = <({String id, String label, IconData icon, List<String> words})>[
     id: 'groceries',
     label: 'Groceries',
     icon: Icons.shopping_cart_rounded,
-    words: ['grocery', 'groceries', 'vegetable', 'veggies', 'milk', 'fruits',
+    words: ['grocery', 'groceries', 'vegetable', 'veggies', 'milk', 'flower', 'fruits',
         'provision', 'kirana', 'supermarket', 'bigbasket', 'blinkit', 'fish',
         'chicken', 'mutton', 'meat', 'egg', 'rice', 'oil', 'atta', 'dal']
   ),

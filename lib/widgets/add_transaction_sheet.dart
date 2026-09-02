@@ -55,38 +55,56 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
     final p = Palette.of(context);
     final picked = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Material(
         color: Colors.transparent,
-        child: Container(
-          margin: const EdgeInsets.all(14),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: p.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: p.line),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final account in widget.accounts)
-                ListTile(
-                  dense: true,
-                  leading: Icon(
-                    account.isCash
-                        ? Icons.payments_rounded
-                        : Icons.account_balance_rounded,
-                    size: 18,
-                    color: p.accentInk,
-                  ),
-                  title: Text(account.name,
-                      style: uiText(size: 14, color: p.ink)),
-                  trailing: account.name == _account
-                      ? Icon(Icons.check_rounded, size: 18, color: p.accentInk)
-                      : null,
-                  onTap: () => Navigator.of(ctx).pop(account.name),
-                ),
-            ],
+        // SafeArea keeps the last account clear of the gesture bar, and the
+        // scroll view means a long list of accounts scrolls rather than
+        // running off the bottom of the screen.
+        child: SafeArea(
+          top: false,
+          child: Container(
+            margin: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+            ),
+            decoration: BoxDecoration(
+              color: p.surface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: p.line),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final account in widget.accounts)
+                    ListTile(
+                      dense: true,
+                      leading: Icon(
+                        account.isCash
+                            ? Icons.payments_rounded
+                            : Icons.account_balance_rounded,
+                        size: 18,
+                        color: p.accentInk,
+                      ),
+                      title: Text(
+                        account.name,
+                        style: uiText(size: 14, color: p.ink),
+                      ),
+                      trailing: account.name == _account
+                          ? Icon(
+                              Icons.check_rounded,
+                              size: 18,
+                              color: p.accentInk,
+                            )
+                          : null,
+                      onTap: () => Navigator.of(ctx).pop(account.name),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -108,8 +126,15 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       initialTime: TimeOfDay.fromDateTime(_when),
     );
     if (!mounted) return;
-    setState(() => _when = DateTime(date.year, date.month, date.day,
-        time?.hour ?? _when.hour, time?.minute ?? _when.minute));
+    setState(
+      () => _when = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time?.hour ?? _when.hour,
+        time?.minute ?? _when.minute,
+      ),
+    );
   }
 
   void _submit() {
@@ -127,17 +152,19 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       setState(() => _error = 'Add what it was for');
       return;
     }
-    widget.onSubmit(Txn(
-      bank: _account,
-      amount: amount,
-      type: _type,
-      time: _when,
-      source: TxnSource.manual,
-      rawSender: 'manual',
-      rawBody: '',
-      category: _category,
-      reason: reason,
-    ));
+    widget.onSubmit(
+      Txn(
+        bank: _account,
+        amount: amount,
+        type: _type,
+        time: _when,
+        source: TxnSource.manual,
+        rawSender: 'manual',
+        rawBody: '',
+        category: _category,
+        reason: reason,
+      ),
+    );
   }
 
   @override
@@ -154,9 +181,10 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
           border: Border.all(color: p.line),
           boxShadow: const [
             BoxShadow(
-                color: Color(0x66000000),
-                blurRadius: 28,
-                offset: Offset(0, 10)),
+              color: Color(0x66000000),
+              blurRadius: 28,
+              offset: Offset(0, 10),
+            ),
           ],
         ),
         child: Column(
@@ -184,8 +212,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                 const Spacer(),
                 GestureDetector(
                   onTap: widget.onCancel,
-                  child:
-                      Icon(Icons.close_rounded, size: 20, color: p.inkFaint),
+                  child: Icon(Icons.close_rounded, size: 20, color: p.inkFaint),
                 ),
               ],
             ),
@@ -200,8 +227,9 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                   child: TextField(
                     controller: _amount,
                     autofocus: true,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     style: heroAmount(44, color: p.ink),
                     cursorColor: p.accentInk,
                     onChanged: (_) {
@@ -262,9 +290,13 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
             ReasonField(controller: _reason, onSubmitted: (_) => _submit()),
             if (_error != null) ...[
               const SizedBox(height: 8),
-              Text(_error!,
-                  style: uiText(
-                      size: 12, color: Theme.of(context).colorScheme.error)),
+              Text(
+                _error!,
+                style: uiText(
+                  size: 12,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
             ],
             const SizedBox(height: 14),
             AccentButton(label: 'Add payment', onPressed: _submit),
@@ -276,9 +308,11 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
 
   String _whenLabel() {
     final now = DateTime.now();
-    final days = DateTime(now.year, now.month, now.day)
-        .difference(DateTime(_when.year, _when.month, _when.day))
-        .inDays;
+    final days = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime(_when.year, _when.month, _when.day)).inDays;
     final day = switch (days) {
       0 => 'Today',
       1 => 'Yesterday',
@@ -315,15 +349,20 @@ class _Picker extends StatelessWidget {
             Icon(icon, size: 13, color: p.inkFaint),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: uiText(size: 12, color: p.inkMuted)),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: uiText(size: 12, color: p.inkMuted),
+              ),
             ),
             if (onTap != null) ...[
               const SizedBox(width: 2),
-              Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 15, color: p.inkFaint),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 15,
+                color: p.inkFaint,
+              ),
             ],
           ],
         ),
@@ -333,6 +372,16 @@ class _Picker extends StatelessWidget {
 }
 
 const monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];

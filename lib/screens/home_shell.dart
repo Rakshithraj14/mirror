@@ -3,6 +3,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import '../models/account.dart';
 import '../models/category.dart';
+import '../models/profile.dart';
 import '../models/transaction.dart';
 import '../services/capture.dart';
 import '../services/notification_capture.dart';
@@ -48,6 +49,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   List<Txn>? _txns;
   List<Account> _accounts = const [];
   List<Category> _categories = const [];
+  Profile _profile = const Profile();
   DateTime _now = DateTime.now();
   /// Set when Overview's "Manage accounts" is tapped, so Profile opens the
   /// accounts sheet instead of just landing on the tab.
@@ -88,11 +90,13 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     final txns = await widget.store.load();
     final accounts = await widget.store.accounts();
     final categories = await widget.store.categories();
+    final profile = await widget.store.profile();
     if (!mounted) return;
     setState(() {
       _txns = txns;
       _accounts = accounts;
       _categories = categories;
+      _profile = profile;
       _now = DateTime.now();
     });
   }
@@ -360,6 +364,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         txns: txns,
         accounts: _accounts,
         categories: _categories,
+        profile: _profile,
         capturing: _capturing,
         themeMode: widget.themeMode,
         onThemeChanged: widget.onThemeChanged,

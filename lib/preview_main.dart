@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'models/account.dart';
 import 'models/category.dart';
+import 'models/profile.dart';
 import 'models/transaction.dart';
 import 'screens/home_shell.dart';
 import 'services/txn_store.dart';
@@ -28,7 +29,14 @@ class _PreviewStore extends TxnStore {
         kind: AccountKind.bank,
         opening: 12000),
   ];
+  Profile _profile = const Profile();
   var _nextId = 10000;
+
+  @override
+  Future<Profile> profile() async => _profile;
+
+  @override
+  Future<void> saveProfile(Profile profile) async => _profile = profile;
 
   @override
   Future<List<Txn>> load() async =>

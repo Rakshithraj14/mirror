@@ -1,5 +1,6 @@
 import '../models/account.dart';
 import '../models/category.dart';
+import '../models/profile.dart';
 import '../models/transaction.dart';
 import 'transactions_db.dart';
 
@@ -45,4 +46,9 @@ class TxnStore {
 
   Future<int> countWithAccount(String name) =>
       TransactionsDb.instance.countWithAccount(name);
+
+  Future<Profile> profile() => TransactionsDb.instance.profile();
+
+  Future<void> saveProfile(Profile profile) =>
+      TransactionsDb.instance.saveProfile(profile);
 }

@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/account.dart';
 import '../models/category.dart';
+import '../models/profile.dart';
 import '../models/transaction.dart';
 
 /// Two sources (bank SMS and payment-app notification) can report the same
@@ -347,6 +348,27 @@ class TransactionsDb {
     final db = await _database;
     final rows = await db.query('transactions', orderBy: 'timestampMillis DESC');
     return rows.map(Txn.fromMap).toList();
+  }
+
+  /// Two rows in the `meta` table that already exists — a name and a photo do
+  /// not justify a schema version.
+  Future<Profile> profile() async {
+    final rows = await metaWithPrefix('profile:');
+    return Profile(
+      name: rows['profile:name'] ?? Profile.defaultName,
+      avatar: rows['profile:avatar'],
+    );
+  }
+
+  Future<void> saveProfile(Profile profile) async {
+    await setMeta('profile:name', profile.name.trim());
+    if (profile.hasAvatar) {
+      await setMeta('profile:avatar', profile.avatar!);
+    } else {
+      // Deleted rather than stored empty, so `profile()` reads back a real
+      // null instead of a path that points nowhere.
+      await deleteMeta('profile:avatar');
+    }
   }
 
   /// How the overlay finds the payment it was raised for. It runs in its own
