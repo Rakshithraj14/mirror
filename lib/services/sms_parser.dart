@@ -41,6 +41,13 @@ final _debitPattern = RegExp(
 // Requiring one of these keeps promotional "Rs 100 off" texts from matching.
 final _contextPattern = RegExp(r'a/c|acct|account|upi|vpa', caseSensitive: false);
 final _signaturePattern = RegExp(r'-\s*([A-Za-z][A-Za-z .]{2,30}Bank)\b');
+// "…has sent money on your CANARA BANK account." A wallet app names the
+// account the money actually moved in, and that is the account the balance
+// belongs to — not the wallet that happened to raise the notification.
+// Anchored on a following "Bank" so a payee called Bob is never read as BOB.
+final _bankInBody = RegExp(
+    r'\b(' + _bankPrefixes.keys.join('|') + r')\s+bank\b',
+    caseSensitive: false);
 // "UPI: 618239653510", "UPI Ref No 123456789012", "RRN 123456789012".
 // Anchored on the keyword so a phone number or account number elsewhere in
 // the message can never be mistaken for a reference — a wrong reference
@@ -103,7 +110,9 @@ Txn? parsePaymentNotification(
     time: postedAt,
     source: TxnSource.notification,
     rawSender: packageName,
-    name: app,
+    // Filing a Canara credit under "Samsung Wallet" invents an account that
+    // does not exist and leaves the real one's balance untouched.
+    name: _bankFromBody(body) ?? app,
   );
 }
 
@@ -157,5 +166,10 @@ String _resolveBank(String sender, String body) {
   }
   final sig = _signaturePattern.firstMatch(body);
   if (sig != null) return sig.group(1)!.trim();
-  return 'Unknown Bank';
+  return _bankFromBody(body) ?? 'Unknown Bank';
+}
+
+String? _bankFromBody(String body) {
+  final match = _bankInBody.firstMatch(body);
+  return match == null ? null : _bankPrefixes[match.group(1)!.toUpperCase()];
 }

@@ -185,6 +185,40 @@ void main() {
       expect(txn.amount, 250.0);
     });
 
+    test('files the money in the account the notification names', () {
+      // Verbatim from the phone, 2 Sep. Samsung Wallet raised it, but the
+      // money moved in Canara — filing it under "Samsung Wallet" would invent
+      // an account and leave the real balance untouched.
+      final txn = parsePaymentNotification(
+        'com.samsung.android.spay',
+        'You have received ₹500.00',
+        '8553747376-2@axl has sent money on your CANARA BANK account.',
+        now,
+      );
+
+      expect(txn, isNotNull);
+      expect(txn!.bank, 'Canara Bank');
+      expect(txn.amount, 500.0);
+      // "received" comes before "has sent", and the earlier verb is the one
+      // describing this account.
+      expect(txn.type, TxnType.credit);
+      // 8553747376 is a phone number, not a UPI reference. Mistaking it for
+      // one would discard a later real transaction as a duplicate.
+      expect(txn.upiRef, isNull);
+    });
+
+    test('keeps the app name when no bank is named', () {
+      final txn = parsePaymentNotification(
+        'com.phonepe.app',
+        'Payment successful',
+        'You paid ₹40 to Bob',
+        now,
+      );
+
+      expect(txn!.bank, 'PhonePe',
+          reason: 'a payee called Bob must not be read as Bank of Baroda');
+    });
+
     test('ignores a whitelisted app notification with no amount', () {
       final txn = parsePaymentNotification(
         'com.phonepe.app',

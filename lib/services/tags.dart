@@ -53,7 +53,7 @@ const _rules = <({String id, String label, IconData icon, List<String> words})>[
     id: 'transport',
     label: 'Transport',
     icon: Icons.directions_car_rounded,
-    words: ['auto', 'cab', 'taxi', 'uber', 'ola', 'bus', 'train', 'metro',
+    words: ['travel', 'auto', 'cab', 'taxi', 'uber', 'ola', 'bus', 'train', 'metro',
         'rapido', 'ticket', 'toll', 'parking']
   ),
   (
@@ -136,7 +136,7 @@ const _rules = <({String id, String label, IconData icon, List<String> words})>[
     id: 'gifts',
     label: 'Gifts',
     icon: Icons.card_giftcard_rounded,
-    words: ['gift', 'donation', 'temple', 'wedding']
+    words: ['gift', 'donation', 'birthday', 'wedding']
   ),
   (
     id: 'jewellery',
@@ -164,6 +164,12 @@ const _rules = <({String id, String label, IconData icon, List<String> words})>[
     icon: Icons.child_care_rounded,
     words: ['baby', 'diaper', 'toy', 'kids']
   ),
+  (
+    id: 'temple',
+    label: 'Temple',
+    icon: Icons.temple_buddhist_rounded,
+    words: ['temple', 'mandir', 'laddu', 'puja', 'prasad', 'aarti']
+  )
 ];
 
 /// Icons for the three categories Yumeko ships with. A category you add
