@@ -29,7 +29,7 @@ class _PreviewStore extends TxnStore {
         kind: AccountKind.bank,
         opening: 12000),
   ];
-  Profile _profile = const Profile();
+  Profile _profile = const Profile(name: 'Rakshith', upi: '7795356018@axl');
   var _nextId = 10000;
 
   @override

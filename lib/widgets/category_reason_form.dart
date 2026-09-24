@@ -267,12 +267,14 @@ class ReasonField extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String>? onSubmitted;
   final VoidCallback? onTap;
+  final String hint;
 
   const ReasonField({
     super.key,
     required this.controller,
     this.onSubmitted,
     this.onTap,
+    this.hint = 'What was it for?',
   });
 
   @override
@@ -290,7 +292,7 @@ class ReasonField extends StatelessWidget {
       onTap: onTap,
       onSubmitted: onSubmitted,
       decoration: InputDecoration(
-        hintText: 'What was it for?',
+        hintText: hint,
         hintStyle: uiText(size: 14, color: p.inkFaint),
         filled: true,
         fillColor: p.ground,

@@ -20,11 +20,18 @@ class YumekoNavBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final VoidCallback onAdd;
 
+  /// The centre button's job changes with the tab (add a payment, or on
+  /// Profile, show your receive QR), so its icon and label come from outside.
+  final IconData centerIcon;
+  final String centerLabel;
+
   const YumekoNavBar({
     super.key,
     required this.index,
     required this.onSelect,
     required this.onAdd,
+    this.centerIcon = Icons.add_rounded,
+    this.centerLabel = 'Add payment',
   });
 
   static const barHeight = 64.0;
@@ -60,7 +67,11 @@ class YumekoNavBar extends StatelessWidget {
           ),
           Positioned(
             bottom: bottomInset + barHeight - fabSize / 2 - 6,
-            child: _AddButton(onTap: onAdd),
+            child: _AddButton(
+              onTap: onAdd,
+              icon: centerIcon,
+              label: centerLabel,
+            ),
           ),
         ],
       ),
@@ -96,37 +107,59 @@ class YumekoNavBar extends StatelessWidget {
 
 class _AddButton extends StatelessWidget {
   final VoidCallback onTap;
+  final IconData icon;
+  final String label;
 
-  const _AddButton({required this.onTap});
+  const _AddButton({
+    required this.onTap,
+    required this.icon,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: YumekoNavBar.fabSize,
-        height: YumekoNavBar.fabSize,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: p.fabGradient,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: p.accent.withValues(alpha: 0.45),
-              blurRadius: 22,
-              spreadRadius: -2,
-              offset: const Offset(0, 6),
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: YumekoNavBar.fabSize,
+          height: YumekoNavBar.fabSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: p.fabGradient,
             ),
-          ],
-          // A ring in the bar's own colour so the circle reads as sitting on
-          // top of the bar rather than punched through it.
-          border: Border.all(color: p.surface, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: p.accent.withValues(alpha: 0.45),
+                blurRadius: 22,
+                spreadRadius: -2,
+                offset: const Offset(0, 6),
+              ),
+            ],
+            // A ring in the bar's own colour so the circle reads as sitting on
+            // top of the bar rather than punched through it.
+            border: Border.all(color: p.surface, width: 3),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (child, anim) => RotationTransition(
+              turns: Tween(begin: 0.75, end: 1.0).animate(anim),
+              child: ScaleTransition(scale: anim, child: child),
+            ),
+            child: Icon(
+              icon,
+              key: ValueKey(icon),
+              size: icon == Icons.add_rounded ? 30 : 26,
+              color: p.onAccent,
+            ),
+          ),
         ),
-        child: Icon(Icons.add_rounded, size: 30, color: p.onAccent),
       ),
     );
   }

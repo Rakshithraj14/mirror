@@ -357,6 +357,7 @@ class TransactionsDb {
     return Profile(
       name: rows['profile:name'] ?? Profile.defaultName,
       avatar: rows['profile:avatar'],
+      upi: rows['profile:upi'],
     );
   }
 
@@ -368,6 +369,11 @@ class TransactionsDb {
       // Deleted rather than stored empty, so `profile()` reads back a real
       // null instead of a path that points nowhere.
       await deleteMeta('profile:avatar');
+    }
+    if (profile.hasUpi) {
+      await setMeta('profile:upi', profile.upi!.trim());
+    } else {
+      await deleteMeta('profile:upi');
     }
   }
 

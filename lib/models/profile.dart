@@ -14,7 +14,10 @@ class Profile {
   /// Absolute path to a file this app owns, or null to draw [initial].
   final String? avatar;
 
-  const Profile({this.name = defaultName, this.avatar});
+  /// Where money paid through the receive QR lands, e.g. 7795356018@axl.
+  final String? upi;
+
+  const Profile({this.name = defaultName, this.avatar, this.upi});
 
   String get _trimmed => name.trim();
 
@@ -24,8 +27,9 @@ class Profile {
 
   /// Taken from runes rather than `[0]` so a name starting with an emoji or a
   /// Devanagari letter does not come back as half a character.
-  String get initial =>
-      String.fromCharCode(display.runes.first).toUpperCase();
+  String get initial => String.fromCharCode(display.runes.first).toUpperCase();
 
   bool get hasAvatar => avatar != null && avatar!.isNotEmpty;
+
+  bool get hasUpi => upi != null && upi!.trim().isNotEmpty;
 }

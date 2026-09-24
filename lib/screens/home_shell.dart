@@ -14,6 +14,7 @@ import '../theme.dart';
 import '../widgets/add_transaction_sheet.dart';
 import '../widgets/category_reason_form.dart';
 import '../widgets/nav_bar.dart';
+import '../widgets/receive_qr_sheet.dart';
 import 'insights_screen.dart';
 import 'overview_screen.dart';
 import 'profile_screen.dart';
@@ -51,6 +52,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   List<Category> _categories = const [];
   Profile _profile = const Profile();
   DateTime _now = DateTime.now();
+
   /// Set when Overview's "Manage accounts" is tapped, so Profile opens the
   /// accounts sheet instead of just landing on the tab.
   bool _openAccounts = false;
@@ -109,8 +111,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   /// prompt can never appear before the explainer.
   Future<void> _resumeCapture() async {
     if (_capturing) return;
-    final overlay = await FlutterOverlayWindow.isPermissionGranted()
-        .catchError((_) => false);
+    final overlay = await FlutterOverlayWindow.isPermissionGranted().catchError(
+      (_) => false,
+    );
     if (!overlay) return;
 
     _smsGranted = await requestSmsPermission();
@@ -150,8 +153,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: p.surface,
-        title: Text('Watch for transactions',
-            style: uiText(size: 17, weight: FontWeight.w600, color: p.ink)),
+        title: Text(
+          'Watch for transactions',
+          style: uiText(size: 17, weight: FontWeight.w600, color: p.ink),
+        ),
         content: Text(
           'Yumeko reads bank SMS and payment app alerts to catch transactions '
           'as they happen, then asks you to tag them. Nothing leaves this '
@@ -161,8 +166,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child:
-                Text('Later', style: uiText(size: 13, color: p.inkMuted)),
+            child: Text('Later', style: uiText(size: 13, color: p.inkMuted)),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -192,8 +196,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
       if (!await isNotificationAccessGranted()) {
         await openNotificationAccessSettings();
-        _snack('Add Yumeko under Notification access to also catch payments '
-            'your bank sends no SMS for.');
+        _snack(
+          'Add Yumeko under Notification access to also catch payments '
+          'your bank sends no SMS for.',
+        );
         return;
       }
       await startNotificationListening();
@@ -207,24 +213,26 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message, style: uiText(size: 13)),
-        action: action,
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message, style: uiText(size: 13)),
+          action: action,
+        ),
+      );
   }
 
   /// `viewInsets` is the keyboard, `SafeArea` is the gesture bar. Both are
   /// needed and they never apply at once — MediaQuery's padding collapses to
   /// zero while the keyboard is up.
   Widget _sheet(BuildContext ctx, Widget child) => Padding(
-        padding: EdgeInsets.only(
-          left: 14,
-          right: 14,
-          top: 14,
-          bottom: MediaQuery.viewInsetsOf(ctx).bottom + 14,
-        ),
-        child: SafeArea(top: false, child: child),
-      );
+    padding: EdgeInsets.only(
+      left: 14,
+      right: 14,
+      top: 14,
+      bottom: MediaQuery.viewInsetsOf(ctx).bottom + 14,
+    ),
+    child: SafeArea(top: false, child: child),
+  );
 
   Future<void> _add() async {
     await showModalBottomSheet<void>(
@@ -242,6 +250,26 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             if (ctx.mounted) Navigator.of(ctx).pop();
             await _load();
           },
+        ),
+      ),
+    );
+  }
+
+  /// Profile's centre button: a QR someone else scans to pay you.
+  Future<void> _receive() async {
+    if (!_profile.hasUpi) {
+      _snack('Add your UPI ID on the profile card first.');
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _sheet(
+        ctx,
+        ReceiveQrSheet(
+          profile: _profile,
+          onCancel: () => Navigator.of(ctx).pop(),
         ),
       ),
     );
@@ -279,8 +307,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: p.surface,
-        title: Text('Delete this payment?',
-            style: uiText(size: 17, weight: FontWeight.w600, color: p.ink)),
+        title: Text(
+          'Delete this payment?',
+          style: uiText(size: 17, weight: FontWeight.w600, color: p.ink),
+        ),
         content: Text(
           '₹${txn.amount.toStringAsFixed(0)}'
           '${txn.reason == null ? '' : ' · ${txn.reason}'}',
@@ -327,8 +357,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           child: SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: p.inkFaint),
+            child: CircularProgressIndicator(strokeWidth: 2, color: p.inkFaint),
           ),
         ),
       );
@@ -384,7 +413,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       bottomNavigationBar: YumekoNavBar(
         index: _tab,
         onSelect: (i) => setState(() => _tab = i),
-        onAdd: _add,
+        onAdd: _tab == 3 ? _receive : _add,
+        centerIcon: _tab == 3 ? Icons.qr_code_2_rounded : Icons.add_rounded,
+        centerLabel: _tab == 3 ? 'Receive with QR' : 'Add payment',
       ),
     );
   }

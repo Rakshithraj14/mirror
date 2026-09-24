@@ -406,6 +406,17 @@ void main() {
       expect(await TransactionsDb.instance.meta('profile:avatar'), isNull);
       expect((await TransactionsDb.instance.profile()).hasAvatar, isFalse);
     });
+
+    test('UPI ID round-trips trimmed, and clearing it deletes the row',
+        () async {
+      await TransactionsDb.instance
+          .saveProfile(const Profile(name: 'R', upi: ' 7795356018@axl '));
+      expect((await TransactionsDb.instance.profile()).upi, '7795356018@axl');
+
+      await TransactionsDb.instance.saveProfile(const Profile(name: 'R'));
+      expect(await TransactionsDb.instance.meta('profile:upi'), isNull);
+      expect((await TransactionsDb.instance.profile()).hasUpi, isFalse);
+    });
   });
 
   group('the overlay handover', () {

@@ -11,6 +11,7 @@ import '../services/avatar.dart';
 import '../services/export_csv.dart';
 import '../services/tags.dart';
 import '../services/txn_store.dart';
+import '../services/upi.dart';
 import '../theme.dart';
 
 /// Settings, and only the ones that do something.
@@ -74,74 +75,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
       children: [
-        Text('Profile',
-            style: uiText(size: 22, weight: FontWeight.w700, color: p.ink)),
+        Text(
+          'Profile',
+          style: uiText(size: 22, weight: FontWeight.w700, color: p.ink),
+        ),
         const SizedBox(height: 16),
         _ProfileCard(
           profile: widget.profile,
           count: widget.txns.length,
           onRename: _rename,
           onEditPhoto: _editPhoto,
+          onEditUpi: _editUpi,
         ),
         const SizedBox(height: 18),
-        _Section(title: 'Money', children: [
-          _Row(
-            icon: Icons.account_balance_wallet_rounded,
-            label: 'Accounts',
-            value: '${widget.accounts.length}',
-            onTap: _openAccounts,
-          ),
-          _Row(
-            icon: Icons.category_rounded,
-            label: 'Categories',
-            value: '${widget.categories.length}',
-            onTap: _openCategories,
-          ),
-          _Row(
-            icon: Icons.sell_rounded,
-            label: 'Tags',
-            value: '${tags.length} in use',
-            onTap: () => _openTags(tags),
-          ),
-        ]),
+        _Section(
+          title: 'Money',
+          children: [
+            _Row(
+              icon: Icons.account_balance_wallet_rounded,
+              label: 'Accounts',
+              value: '${widget.accounts.length}',
+              onTap: _openAccounts,
+            ),
+            _Row(
+              icon: Icons.category_rounded,
+              label: 'Categories',
+              value: '${widget.categories.length}',
+              onTap: _openCategories,
+            ),
+            _Row(
+              icon: Icons.sell_rounded,
+              label: 'Tags',
+              value: '${tags.length} in use',
+              onTap: () => _openTags(tags),
+            ),
+          ],
+        ),
         const SizedBox(height: 14),
-        _Section(title: 'Preferences', children: [
-          _Row(
-            icon: Icons.contrast_rounded,
-            label: 'Theme',
-            value: switch (widget.themeMode) {
-              ThemeMode.dark => 'Dark',
-              ThemeMode.light => 'Light',
-              ThemeMode.system => 'System',
-            },
-            onTap: _pickTheme,
-          ),
-          _Row(
-            icon: Icons.notifications_active_rounded,
-            label: 'Capture',
-            value: widget.capturing ? 'On' : 'Off',
-            onTap: widget.onTurnOnCapture,
-          ),
-          _Row(
-            icon: Icons.currency_rupee_rounded,
-            label: 'Currency',
-            value: 'INR (₹)',
-          ),
-        ]),
+        _Section(
+          title: 'Preferences',
+          children: [
+            _Row(
+              icon: Icons.contrast_rounded,
+              label: 'Theme',
+              value: switch (widget.themeMode) {
+                ThemeMode.dark => 'Dark',
+                ThemeMode.light => 'Light',
+                ThemeMode.system => 'System',
+              },
+              onTap: _pickTheme,
+            ),
+            _Row(
+              icon: Icons.notifications_active_rounded,
+              label: 'Capture',
+              value: widget.capturing ? 'On' : 'Off',
+              onTap: widget.onTurnOnCapture,
+            ),
+            _Row(
+              icon: Icons.currency_rupee_rounded,
+              label: 'Currency',
+              value: 'INR (₹)',
+            ),
+          ],
+        ),
         const SizedBox(height: 14),
-        _Section(title: 'Data', children: [
-          _Row(
-            icon: Icons.ios_share_rounded,
-            label: 'Export data',
-            value: 'CSV · Excel',
-            onTap: _pickExport,
-          ),
-          _Row(
-            icon: Icons.info_outline_rounded,
-            label: 'About Yumeko',
-            onTap: _about,
-          ),
-        ]),
+        _Section(
+          title: 'Data',
+          children: [
+            _Row(
+              icon: Icons.ios_share_rounded,
+              label: 'Export data',
+              value: 'CSV · Excel',
+              onTap: _pickExport,
+            ),
+            _Row(
+              icon: Icons.info_outline_rounded,
+              label: 'About Yumeko',
+              onTap: _about,
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
         if (balances.any((b) => b.clamped))
           Padding(
@@ -150,7 +163,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               'A cash account went below zero and is being shown as ₹0. '
               'Physical cash cannot be negative, so either the opening '
               'balance is too low or some income was never recorded.',
-              style: uiText(size: 11.5, color: p.inkFaint).copyWith(height: 1.5),
+              style: uiText(
+                size: 11.5,
+                color: p.inkFaint,
+              ).copyWith(height: 1.5),
             ),
           ),
       ],
@@ -168,10 +184,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // a blank card is never what anyone meant.
     if (name == null || name.trim().isEmpty) return;
 
-    await widget.store.saveProfile(Profile(
-      name: name.trim(),
-      avatar: widget.profile.avatar,
-    ));
+    await widget.store.saveProfile(
+      Profile(
+        name: name.trim(),
+        avatar: widget.profile.avatar,
+        upi: widget.profile.upi,
+      ),
+    );
+    await widget.onChanged();
+  }
+
+  Future<void> _editUpi() async {
+    final upi = await _promptText(
+      context,
+      title: 'Your UPI ID',
+      hint: '7795356018@axl',
+      initial: widget.profile.upi,
+      keyboardType: TextInputType.emailAddress,
+      // Empty is allowed: it is how you remove the UPI ID.
+      validator: (v) => v.isEmpty || isValidUpiId(v)
+          ? null
+          : 'That does not look like a UPI ID (name@bank)',
+    );
+    if (upi == null) return;
+
+    await widget.store.saveProfile(
+      Profile(
+        name: widget.profile.name,
+        avatar: widget.profile.avatar,
+        upi: upi.isEmpty ? null : upi,
+      ),
+    );
     await widget.onChanged();
   }
 
@@ -181,7 +224,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (replace == null) return;
       if (!replace) {
         await deleteAvatar(widget.profile.avatar);
-        await widget.store.saveProfile(Profile(name: widget.profile.name));
+        await widget.store.saveProfile(
+          Profile(name: widget.profile.name, upi: widget.profile.upi),
+        );
         await widget.onChanged();
         return;
       }
@@ -190,33 +235,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final path = await pickAvatar(previous: widget.profile.avatar);
     if (path == null) return;
     await widget.store.saveProfile(
-        Profile(name: widget.profile.name, avatar: path));
+      Profile(name: widget.profile.name, avatar: path, upi: widget.profile.upi),
+    );
     await widget.onChanged();
   }
 
   /// true = pick a new one, false = go back to the initial, null = cancel.
   /// Without the middle option there is no way back to the letter.
   Future<bool?> _askPhotoAction() => showModalBottomSheet<bool>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => _Sheet(
-          title: 'Your photo',
-          children: [
-            _Row(
-              icon: Icons.photo_library_rounded,
-              label: 'Choose another',
-              onTap: () => Navigator.of(ctx).pop(true),
-            ),
-            _Row(
-              icon: Icons.delete_outline_rounded,
-              label: 'Remove photo',
-              value: 'back to ${widget.profile.initial}',
-              onTap: () => Navigator.of(ctx).pop(false),
-            ),
-          ],
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => _Sheet(
+      title: 'Your photo',
+      children: [
+        _Row(
+          icon: Icons.photo_library_rounded,
+          label: 'Choose another',
+          onTap: () => Navigator.of(ctx).pop(true),
         ),
-      );
+        _Row(
+          icon: Icons.delete_outline_rounded,
+          label: 'Remove photo',
+          value: 'back to ${widget.profile.initial}',
+          onTap: () => Navigator.of(ctx).pop(false),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _pickExport() async {
     final format = await showModalBottomSheet<ExportFormat>(
@@ -225,7 +271,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => _Sheet(
         title: 'Export data',
-        subtitle: 'All ${widget.txns.length} transactions, every time — '
+        subtitle:
+            'All ${widget.txns.length} transactions, every time — '
             'Yumeko does not export a partial period.',
         children: [
           _Row(
@@ -247,14 +294,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await exportTransactions(widget.txns,
-          format: format, categories: widget.categories);
-      messenger.showSnackBar(SnackBar(
-          content: Text('Exported ${widget.txns.length} transactions.',
-              style: uiText(size: 13))));
+      await exportTransactions(
+        widget.txns,
+        format: format,
+        categories: widget.categories,
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Exported ${widget.txns.length} transactions.',
+            style: uiText(size: 13),
+          ),
+        ),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(
-          content: Text('Could not export: $e', style: uiText(size: 13))));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not export: $e', style: uiText(size: 13)),
+        ),
+      );
     }
   }
 
@@ -301,8 +359,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: tags.isEmpty
             ? [
                 const _Note(
-                    'No tags yet. Tag a payment with a reason like "chai" and '
-                    'it appears here.')
+                  'No tags yet. Tag a payment with a reason like "chai" and '
+                  'it appears here.',
+                ),
               ]
             : [
                 for (final entry in tags)
@@ -435,15 +494,19 @@ class _Row extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: uiText(size: 14, color: p.ink),
+                  ),
+                  if (caption != null)
+                    Text(
+                      caption!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: uiText(size: 14, color: p.ink)),
-                  if (caption != null)
-                    Text(caption!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: uiText(size: 10.5, color: p.inkFaint)),
+                      style: uiText(size: 10.5, color: p.inkFaint),
+                    ),
                 ],
               ),
             ),
@@ -465,19 +528,22 @@ class _Row extends StatelessWidget {
 
 /// The header card: your photo, your name, and how much is on this phone.
 ///
-/// Two targets in one card — the circle changes the photo, the rest renames.
+/// Three targets in one card — the circle changes the photo, the UPI line
+/// edits the UPI ID, the rest renames.
 /// The badge and the pencil are there because nothing else says it is tappable.
 class _ProfileCard extends StatelessWidget {
   final Profile profile;
   final int count;
   final VoidCallback onRename;
   final VoidCallback onEditPhoto;
+  final VoidCallback onEditUpi;
 
   const _ProfileCard({
     required this.profile,
     required this.count,
     required this.onRename,
     required this.onEditPhoto,
+    required this.onEditUpi,
   });
 
   @override
@@ -494,7 +560,10 @@ class _ProfileCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            GestureDetector(onTap: onEditPhoto, child: _Avatar(profile: profile)),
+            GestureDetector(
+              onTap: onEditPhoto,
+              child: _Avatar(profile: profile),
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -505,11 +574,45 @@ class _ProfileCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: uiText(
-                        size: 16, weight: FontWeight.w700, color: p.ink),
+                      size: 16,
+                      weight: FontWeight.w700,
+                      color: p.ink,
+                    ),
                   ),
                   const SizedBox(height: 2),
-                  Text('$count transactions · on this phone only',
-                      style: uiText(size: 12, color: p.inkFaint)),
+                  GestureDetector(
+                    onTap: onEditUpi,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.alternate_email_rounded,
+                            size: 13,
+                            color: p.accentInk,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              profile.hasUpi ? profile.upi! : 'Add UPI ID',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: uiText(
+                                size: 12.5,
+                                weight: FontWeight.w500,
+                                color: p.accentInk,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$count transactions · on this phone only',
+                    style: uiText(size: 12, color: p.inkFaint),
+                  ),
                 ],
               ),
             ),
@@ -566,8 +669,11 @@ class _Avatar extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: p.line),
               ),
-              child: Icon(Icons.photo_camera_rounded,
-                  size: 10, color: p.inkMuted),
+              child: Icon(
+                Icons.photo_camera_rounded,
+                size: 10,
+                color: p.inkMuted,
+              ),
             ),
           ),
         ],
@@ -613,46 +719,56 @@ class _Sheet extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Container(
-        margin: EdgeInsets.only(
-          left: 14,
-          right: 14,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 14,
-          top: 14,
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-        constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.78),
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: p.line),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Text(title,
-                  style:
-                      uiText(size: 16, weight: FontWeight.w700, color: p.ink)),
-            ),
-            if (subtitle != null)
+          margin: EdgeInsets.only(
+            left: 14,
+            right: 14,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 14,
+            top: 14,
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+          ),
+          decoration: BoxDecoration(
+            color: p.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: p.line),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
-                child: Text(subtitle!,
-                    style: uiText(size: 12.5, color: p.inkMuted)),
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  title,
+                  style: uiText(
+                    size: 16,
+                    weight: FontWeight.w700,
+                    color: p.ink,
+                  ),
+                ),
               ),
-            const SizedBox(height: 10),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                    mainAxisSize: MainAxisSize.min, children: children),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                  child: Text(
+                    subtitle!,
+                    style: uiText(size: 12.5, color: p.inkMuted),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: children,
+                  ),
+                ),
               ),
-            ),
-            if (action != null) ...[const SizedBox(height: 12), action!],
-          ],
-        ),
+              if (action != null) ...[const SizedBox(height: 12), action!],
+            ],
+          ),
         ),
       ),
     );
@@ -669,8 +785,10 @@ class _Note extends StatelessWidget {
     final p = Palette.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
-      child: Text(text,
-          style: uiText(size: 13, color: p.inkMuted).copyWith(height: 1.5)),
+      child: Text(
+        text,
+        style: uiText(size: 13, color: p.inkMuted).copyWith(height: 1.5),
+      ),
     );
   }
 }
@@ -713,11 +831,13 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
     // Renaming keeps the original id, so every payment already tagged with it
     // follows the new name instead of being orphaned.
     final id = existing?.id ?? _uniqueId(label, list);
-    await widget.store.saveCategory(Category(
-      id: id,
-      label: label,
-      position: existing?.position ?? list.length,
-    ));
+    await widget.store.saveCategory(
+      Category(
+        id: id,
+        label: label,
+        position: existing?.position ?? list.length,
+      ),
+    );
     await _reload();
   }
 
@@ -725,7 +845,7 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
     final base = Category.idFrom(label);
     final taken = existing.map((c) => c.id).toSet();
     if (!taken.contains(base)) return base;
-    for (var i = 2;; i++) {
+    for (var i = 2; ; i++) {
       if (!taken.contains('$base-$i')) return '$base-$i';
     }
   }
@@ -739,14 +859,16 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: p.surface,
-        title: Text('Delete ${category.label}?',
-            style: uiText(size: 16, weight: FontWeight.w600, color: p.ink)),
+        title: Text(
+          'Delete ${category.label}?',
+          style: uiText(size: 16, weight: FontWeight.w600, color: p.ink),
+        ),
         content: Text(
           used == 0
               ? 'Nothing is using it.'
               : '$used ${used == 1 ? 'payment goes' : 'payments go'} back to '
-                  'needing a tag. The amounts stay; only the category and '
-                  'reason are cleared.',
+                    'needing a tag. The amounts stay; only the category and '
+                    'reason are cleared.',
           style: uiText(size: 13, color: p.inkMuted),
         ),
         actions: [
@@ -772,37 +894,44 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
     final categories = _categories;
     return _Sheet(
       title: 'Categories',
-      subtitle: 'What you pick when tagging a payment. Add your own or drop '
+      subtitle:
+          'What you pick when tagging a payment. Add your own or drop '
           'the ones you never use.',
       action: AddRowButton(label: 'Add category', onTap: () => _edit()),
       children: categories == null
           ? [const _Note('Loading…')]
           : categories.isEmpty
-              ? [const _Note('No categories. Add one to start tagging again.')]
-              : [
-                  for (final category in categories)
-                    _Row(
-                      icon: categoryIcon(category.id),
-                      label: category.label,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            icon: Icon(Icons.edit_outlined,
-                                size: 16, color: p.inkFaint),
-                            onPressed: () => _edit(existing: category),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            icon: Icon(Icons.delete_outline_rounded,
-                                size: 17, color: p.inkFaint),
-                            onPressed: () => _remove(category),
-                          ),
-                        ],
+          ? [const _Note('No categories. Add one to start tagging again.')]
+          : [
+              for (final category in categories)
+                _Row(
+                  icon: categoryIcon(category.id),
+                  label: category.label,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 16,
+                          color: p.inkFaint,
+                        ),
+                        onPressed: () => _edit(existing: category),
                       ),
-                    ),
-                ],
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          size: 17,
+                          color: p.inkFaint,
+                        ),
+                        onPressed: () => _remove(category),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
     );
   }
 }
@@ -868,8 +997,10 @@ class _AccountsSheetState extends State<_AccountsSheet> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: p.surface,
-          title: Text('${account.name} is in use',
-              style: uiText(size: 16, weight: FontWeight.w600, color: p.ink)),
+          title: Text(
+            '${account.name} is in use',
+            style: uiText(size: 16, weight: FontWeight.w600, color: p.ink),
+          ),
           content: Text(
             '$used ${used == 1 ? 'transaction is' : 'transactions are'} '
             'recorded against it. Removing it would leave them pointing at an '
@@ -896,49 +1027,57 @@ class _AccountsSheetState extends State<_AccountsSheet> {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final accounts = _accounts;
-    final balances =
-        accounts == null ? <AccountBalance>[] : accountBalances(_txns, accounts);
+    final balances = accounts == null
+        ? <AccountBalance>[]
+        : accountBalances(_txns, accounts);
 
     return _Sheet(
       title: 'Accounts',
-      subtitle: 'Set what each held before Yumeko started watching. When a '
+      subtitle:
+          'Set what each held before Yumeko started watching. When a '
           'bank prints its own balance in a message, that is used instead.',
       action: AddRowButton(label: 'Add account', onTap: () => _edit()),
       children: accounts == null
           ? [const _Note('Loading…')]
           : accounts.isEmpty
-              ? [const _Note('No accounts yet. Add cash or a bank to start.')]
-              : [
-                  for (final balance in balances)
-                    _Row(
-                      icon: balance.account.isCash
-                          ? Icons.payments_rounded
-                          : Icons.account_balance_rounded,
-                      label: balance.account.name,
-                      caption: balance.fromBank
-                          ? 'from the bank · ₹${balance.balance.toStringAsFixed(0)}'
-                          : balance.clamped
-                              ? 'held at ₹0 — cash cannot go negative'
-                              : 'now ₹${balance.balance.toStringAsFixed(0)}',
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            icon: Icon(Icons.edit_outlined,
-                                size: 16, color: p.inkFaint),
-                            onPressed: () => _edit(existing: balance.account),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            icon: Icon(Icons.delete_outline_rounded,
-                                size: 17, color: p.inkFaint),
-                            onPressed: () => _remove(balance.account),
-                          ),
-                        ],
+          ? [const _Note('No accounts yet. Add cash or a bank to start.')]
+          : [
+              for (final balance in balances)
+                _Row(
+                  icon: balance.account.isCash
+                      ? Icons.payments_rounded
+                      : Icons.account_balance_rounded,
+                  label: balance.account.name,
+                  caption: balance.fromBank
+                      ? 'from the bank · ₹${balance.balance.toStringAsFixed(0)}'
+                      : balance.clamped
+                      ? 'held at ₹0 — cash cannot go negative'
+                      : 'now ₹${balance.balance.toStringAsFixed(0)}',
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 16,
+                          color: p.inkFaint,
+                        ),
+                        onPressed: () => _edit(existing: balance.account),
                       ),
-                    ),
-                ],
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          size: 17,
+                          color: p.inkFaint,
+                        ),
+                        onPressed: () => _remove(balance.account),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
     );
   }
 }
@@ -955,9 +1094,10 @@ class _AccountForm extends StatefulWidget {
 class _AccountFormState extends State<_AccountForm> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
   late final _opening = TextEditingController(
-      text: widget.existing == null || widget.existing!.opening == 0
-          ? ''
-          : widget.existing!.opening.toStringAsFixed(0));
+    text: widget.existing == null || widget.existing!.opening == 0
+        ? ''
+        : widget.existing!.opening.toStringAsFixed(0),
+  );
   late AccountKind _kind = widget.existing?.kind ?? AccountKind.bank;
   String? _error;
 
@@ -985,21 +1125,23 @@ class _AccountFormState extends State<_AccountForm> {
       setState(() => _error = 'A balance cannot be negative');
       return;
     }
-    Navigator.of(context).pop(Account(
-      name: name,
-      kind: _kind,
-      opening: opening ?? 0,
-      position: widget.existing?.position ?? 0,
-    ));
+    Navigator.of(context).pop(
+      Account(
+        name: name,
+        kind: _kind,
+        opening: opening ?? 0,
+        position: widget.existing?.position ?? 0,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     OutlineInputBorder border(Color c) => OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: c),
-        );
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: c),
+    );
 
     return _Sheet(
       title: widget.existing == null ? 'Add account' : 'Edit account',
@@ -1010,7 +1152,8 @@ class _AccountFormState extends State<_AccountForm> {
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(
-                      right: kind == AccountKind.values.last ? 0 : 8),
+                    right: kind == AccountKind.values.last ? 0 : 8,
+                  ),
                   child: GestureDetector(
                     onTap: () => setState(() => _kind = kind),
                     child: AnimatedContainer(
@@ -1022,7 +1165,8 @@ class _AccountFormState extends State<_AccountForm> {
                             : p.ground,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: _kind == kind ? p.accent : p.line),
+                          color: _kind == kind ? p.accent : p.line,
+                        ),
                       ),
                       child: Column(
                         children: [
@@ -1067,8 +1211,10 @@ class _AccountFormState extends State<_AccountForm> {
             filled: true,
             fillColor: p.ground,
             isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             border: border(p.line),
             enabledBorder: border(p.line),
             focusedBorder: border(p.accent),
@@ -1091,8 +1237,10 @@ class _AccountFormState extends State<_AccountForm> {
             filled: true,
             fillColor: p.ground,
             isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             border: border(p.line),
             enabledBorder: border(p.line),
             focusedBorder: border(p.accent),
@@ -1100,9 +1248,10 @@ class _AccountFormState extends State<_AccountForm> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 8),
-          Text(_error!,
-              style: uiText(
-                  size: 12, color: Theme.of(context).colorScheme.error)),
+          Text(
+            _error!,
+            style: uiText(size: 12, color: Theme.of(context).colorScheme.error),
+          ),
         ],
         const SizedBox(height: 14),
         SizedBox(
@@ -1114,11 +1263,17 @@ class _AccountFormState extends State<_AccountForm> {
               backgroundColor: p.accent,
               foregroundColor: p.onAccent,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: Text('Save',
-                style:
-                    uiText(size: 14, weight: FontWeight.w600, color: p.onAccent)),
+            child: Text(
+              'Save',
+              style: uiText(
+                size: 14,
+                weight: FontWeight.w600,
+                color: p.onAccent,
+              ),
+            ),
           ),
         ),
       ],
@@ -1144,8 +1299,9 @@ class AddRowButton extends StatelessWidget {
         label: Text(label, style: uiText(size: 13.5, color: p.accentInk)),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: p.line),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );
@@ -1157,38 +1313,62 @@ Future<String?> _promptText(
   required String title,
   required String hint,
   String? initial,
+  TextInputType? keyboardType,
+
+  /// Returns an error to show under the field, or null to accept the value.
+  String? Function(String value)? validator,
 }) async {
   final p = Palette.of(context);
   final controller = TextEditingController(text: initial ?? '');
+  String? error;
   final value = await showDialog<String>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: p.surface,
-      title: Text(title,
-          style: uiText(size: 16, weight: FontWeight.w600, color: p.ink)),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        style: uiText(size: 15, color: p.ink),
-        cursorColor: p.accentInk,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: uiText(size: 15, color: p.inkFaint),
-        ),
-        onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: Text('Cancel', style: uiText(size: 13, color: p.inkMuted)),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-          child: const Text('Save'),
-        ),
-      ],
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) {
+        void save() {
+          final v = controller.text.trim();
+          final problem = validator?.call(v);
+          if (problem != null) return setState(() => error = problem);
+          Navigator.of(ctx).pop(v);
+        }
+
+        return AlertDialog(
+          backgroundColor: p.surface,
+          title: Text(
+            title,
+            style: uiText(size: 16, weight: FontWeight.w600, color: p.ink),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: keyboardType,
+            autocorrect: validator == null,
+            style: uiText(size: 15, color: p.ink),
+            cursorColor: p.accentInk,
+            onChanged: (_) {
+              if (error != null) setState(() => error = null);
+            },
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: uiText(size: 15, color: p.inkFaint),
+              errorText: error,
+              errorMaxLines: 2,
+            ),
+            onSubmitted: (_) => save(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('Cancel', style: uiText(size: 13, color: p.inkMuted)),
+            ),
+            FilledButton(onPressed: save, child: const Text('Save')),
+          ],
+        );
+      },
     ),
   );
-  controller.dispose();
+  // Not disposed: the dialog's exit animation still rebuilds the field after
+  // this future completes, and a disposed controller throws there. It holds
+  // no listeners of ours, so the garbage collector takes it with the dialog.
   return value;
 }

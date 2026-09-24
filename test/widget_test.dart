@@ -19,8 +19,10 @@ void main() {
 
   /// runAsync so the real sqflite query can complete — inside the default
   /// fake-async zone the FutureBuilder would never resolve.
-  Future<void> pumpApp(WidgetTester tester,
-      {ThemeMode mode = ThemeMode.dark}) async {
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    ThemeMode mode = ThemeMode.dark,
+  }) async {
     // The cards fill the default 600px test surface on their own, so a lazy
     // ListView would never build the transaction list underneath them.
     tester.view.physicalSize = const Size(400, 1800);
@@ -46,8 +48,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Overview renders the spend card and the empty state',
-      (tester) async {
+  testWidgets('Overview renders the spend card and the empty state', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     expect(find.text('YUMEKO'), findsOneWidget);
@@ -59,7 +62,11 @@ void main() {
   testWidgets('every tab is reachable from the nav bar', (tester) async {
     await pumpApp(tester);
 
-    for (final entry in {1: 'Transactions', 2: 'Insights', 3: 'Profile'}.entries) {
+    for (final entry in {
+      1: 'Transactions',
+      2: 'Insights',
+      3: 'Profile',
+    }.entries) {
       await tester.tap(find.byIcon(navItems[entry.key].icon));
       await tester.pumpAndSettle();
       // Once as the nav label, once as the screen heading.
@@ -67,7 +74,9 @@ void main() {
     }
   });
 
-  testWidgets('the add button opens the sheet from any tab', (tester) async {
+  testWidgets('the add button opens the sheet from the other tabs', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.byIcon(navItems[2].icon));
     await tester.pumpAndSettle();
@@ -79,8 +88,56 @@ void main() {
     expect(find.text('What was it for?'), findsOneWidget);
   });
 
-  testWidgets('the add sheet refuses to save without an amount',
-      (tester) async {
+  testWidgets('on Profile the centre button becomes a receive QR', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await tester.tap(find.byIcon(navItems[3].icon));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.add_rounded), findsNothing);
+    expect(find.byIcon(Icons.qr_code_2_rounded), findsOneWidget);
+
+    // No UPI ID yet: the QR has nowhere to send money, so it refuses.
+    await tester.tap(find.byIcon(Icons.qr_code_2_rounded));
+    await tester.pump();
+    expect(find.textContaining('Add your UPI ID'), findsWidgets);
+
+    await tester.tap(find.text('Add UPI ID'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '7795356018');
+    await tester.tap(find.text('Save'));
+    await tester.pump();
+    expect(find.textContaining('does not look like a UPI ID'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '7795356018@axl');
+    await tester.tap(find.text('Save'));
+    // Save, then the reload it triggers: two rounds of real sqflite I/O.
+    await settle(tester);
+    await settle(tester);
+    expect(find.text('7795356018@axl'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.qr_code_2_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Name'), findsOneWidget);
+    expect(find.text('Reason (optional)'), findsOneWidget);
+
+    await tester.tap(find.text('Generate QR'));
+    await tester.pump();
+    expect(find.text('Enter an amount'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '250');
+    await tester.pumpAndSettle(); // the error line animates away first
+    await tester.tap(find.text('Generate QR'));
+    await tester.pumpAndSettle();
+    expect(find.text('SCAN TO PAY'), findsOneWidget);
+    expect(find.text('₹250'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
+  });
+
+  testWidgets('the add sheet refuses to save without an amount', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
@@ -93,8 +150,9 @@ void main() {
     expect(find.text('Add payment'), findsOneWidget);
   });
 
-  testWidgets('the add sheet asks for a category before saving',
-      (tester) async {
+  testWidgets('the add sheet asks for a category before saving', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
@@ -106,8 +164,9 @@ void main() {
     expect(find.text('Pick a category'), findsOneWidget);
   });
 
-  testWidgets('a manual payment lands with the tag read from its reason',
-      (tester) async {
+  testWidgets('a manual payment lands with the tag read from its reason', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
@@ -128,8 +187,9 @@ void main() {
   // Two tests rather than one: YumekoApp reads initialThemeMode once, so
   // re-pumping the same widget keeps the mode it already has — which is right
   // for the app and useless for asserting the other theme.
-  testWidgets('the light theme uses lime as a fill, never as ink',
-      (tester) async {
+  testWidgets('the light theme uses lime as a fill, never as ink', (
+    tester,
+  ) async {
     await pumpApp(tester, mode: ThemeMode.light);
     final p = Palette.of(tester.element(find.text('YUMEKO')));
 
