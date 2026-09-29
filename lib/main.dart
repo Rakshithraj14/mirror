@@ -7,6 +7,7 @@ import 'models/category.dart';
 import 'models/transaction.dart';
 import 'screens/home_shell.dart';
 import 'services/capture.dart';
+import 'services/home_widgets.dart';
 import 'services/settings.dart';
 import 'services/transactions_db.dart';
 import 'theme.dart';
@@ -122,6 +123,11 @@ class _OverlayAppState extends State<_OverlayApp> {
     final txn = _txn;
     if (txn?.id == null) return;
     await TransactionsDb.instance.tag(txn!.id!, category, reason);
+    // The untagged count on the home screen just went down by one. Before the
+    // dismiss, which can tear this engine down.
+    try {
+      await refreshTodayWidget(await TransactionsDb.instance.getAll());
+    } catch (_) {}
     await dismissOverlay();
   }
 

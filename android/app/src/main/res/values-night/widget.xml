@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widgets, dark. Mirrors Palette.dark in lib/theme.dart. -->
+<resources>
+    <color name="widget_bg">#141317</color>
+    <color name="widget_line">#262530</color>
+    <color name="widget_ink">#F4F3F6</color>
+    <color name="widget_muted">#9C99A6</color>
+    <color name="widget_accent">#BC13FE</color>
+    <color name="widget_pill_bg">#33BC13FE</color>
+    <color name="widget_pill_ink">#DCA0FF</color>
+</resources>

@@ -10,16 +10,19 @@ bool isValidUpiId(String id) => _upiId.hasMatch(id.trim());
 /// as `+` — several UPI apps show that literally, so "Rakshith Raj" came out
 /// as "Rakshith+Raj" on the payer's screen. `pa` stays unencoded: it is already
 /// validated to URL-safe characters, and some apps reject `%40` for `@`.
+///
+/// A null [amount] leaves `am` out, and the payer's app asks for one: that is
+/// the reusable QR on the home screen.
 String upiPayUri({
   required String upiId,
   required String name,
-  required double amount,
+  double? amount,
   String? note,
 }) {
   final params = {
     'pa': upiId.trim(),
     'pn': Uri.encodeComponent(name.trim()),
-    'am': amount.toStringAsFixed(2),
+    if (amount != null) 'am': amount.toStringAsFixed(2),
     'cu': 'INR',
     if (note != null && note.trim().isNotEmpty)
       'tn': Uri.encodeComponent(note.trim()),

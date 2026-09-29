@@ -33,4 +33,11 @@ void main() {
       'upi://pay?pa=me@axl&pn=Me&am=9.50&cu=INR',
     );
   });
+
+  test('no amount leaves am out, so the payer enters one', () {
+    expect(
+      upiPayUri(upiId: 'me@axl', name: 'Me'),
+      'upi://pay?pa=me@axl&pn=Me&cu=INR',
+    );
+  });
 }

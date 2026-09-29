@@ -45,6 +45,7 @@ dependencies:
   excel: ^4.0.6
   image_picker: ^1.2.3
   qr_flutter: ^4.1.0
+  home_widget: ^0.10.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

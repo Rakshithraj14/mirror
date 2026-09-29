@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widgets, light. Mirrors Palette.light in lib/theme.dart. -->
+<resources>
+    <color name="widget_bg">#FFFFFF</color>
+    <color name="widget_line">#E6E8E0</color>
+    <color name="widget_ink">#101110</color>
+    <color name="widget_muted">#63665E</color>
+    <color name="widget_accent">#5C7A10</color>
+    <color name="widget_pill_bg">#C2F13C</color>
+    <color name="widget_pill_ink">#101110</color>
+
+    <string name="widget_today_label">Yumeko · Today</string>
+    <string name="widget_today_description">What you spent today, against your daily average</string>
+    <string name="widget_qr_label">Yumeko · Receive QR</string>
+    <string name="widget_qr_description">Your UPI QR, ready for anyone to scan and pay</string>
+</resources>

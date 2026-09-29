@@ -1,6 +1,7 @@
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import '../models/transaction.dart';
+import 'home_widgets.dart';
 import 'transactions_db.dart';
 
 /// The id the overlay should tag, handed over through the database.
@@ -33,6 +34,12 @@ bool shouldAskForCapture({
 Future<void> captureTransaction(Txn txn) async {
   final id = await TransactionsDb.instance.insertIfNew(txn);
   if (id == null) return; // already captured from the other source
+
+  // Before the popup, which can bail out below: the home screen should show
+  // the payment whether or not it can be tagged right now.
+  try {
+    await refreshTodayWidget(await TransactionsDb.instance.getAll());
+  } catch (_) {}
 
   if (!await FlutterOverlayWindow.isPermissionGranted()) return;
 

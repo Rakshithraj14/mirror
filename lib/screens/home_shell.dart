@@ -6,6 +6,7 @@ import '../models/category.dart';
 import '../models/profile.dart';
 import '../models/transaction.dart';
 import '../services/capture.dart';
+import '../services/home_widgets.dart';
 import '../services/notification_capture.dart';
 import '../services/settings.dart';
 import '../services/sms_capture.dart';
@@ -101,6 +102,10 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       _profile = profile;
       _now = DateTime.now();
     });
+    // Every add, tag, delete and profile edit ends in this reload, so the
+    // home-screen widgets follow the app without each action remembering to.
+    refreshTodayWidget(txns);
+    refreshQrWidget(profile);
   }
 
   /// Starts listening again when the permissions are already in place.

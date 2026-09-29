@@ -49,6 +49,26 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Shows a popup to tag a detected bank/UPI transaction"/>
         </service>
+        <!-- Home-screen widgets. Data is pushed from Dart through home_widget;
+             see lib/services/home_widgets.dart. -->
+        <receiver android:name=".TodayWidget"
+            android:label="@string/widget_today_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/today_widget_info"/>
+        </receiver>
+        <receiver android:name=".QrWidget"
+            android:label="@string/widget_qr_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                android:resource="@xml/qr_widget_info"/>
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"
