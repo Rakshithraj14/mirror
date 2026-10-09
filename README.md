@@ -83,7 +83,3 @@ flutter test integration_test/on_device_test.dart -d <id>  # on a phone
 ```
 
 The on-device test uninstalls the app when it finishes, which deletes its database. Don't run it on a phone with transactions you want to keep.
-
-## More
-
-[roadmap.md](roadmap.md) has the design decisions, device notes and the known plugin workarounds.
